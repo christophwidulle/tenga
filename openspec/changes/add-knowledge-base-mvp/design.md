@@ -44,12 +44,14 @@ Tenga is a greenfield project implementing a personal knowledge base with conver
 
 **Schema outline:**
 ```sql
-documents (id, title, content, content_vector, created_at, updated_at, deleted_at, current_version)
+documents (id, title, content, content_vector vector(1536), created_at, updated_at, deleted_at, current_version)
 document_versions (id, document_id, version_number, title, content, tags_snapshot, created_at, change_summary)
 tags (id, name, parent_id, created_at)
 document_tags (document_id, tag_id)
 api_keys (id, key_hash, created_at, last_used_at) -- for future expansion
 ```
+
+**Note:** `content_vector` uses pgvector extension with 1536 dimensions for OpenAI text-embedding-3-large (optimized for balance between quality and storage).
 
 **Alternatives considered:**
 - NoSQL (MongoDB): Rejected because hierarchical queries and version diffing are easier in SQL
@@ -347,7 +349,7 @@ spring:
 
 ### 5. Embedding Service: OpenAI
 
-**Decision:** Use OpenAI's text-embedding-3-small model for Phase 2 semantic search.
+**Decision:** Use OpenAI's text-embedding-3-large model for Phase 2 semantic search with 1536 dimensions.
 
 **Implementation (Phase 2):**
 ```java
@@ -370,15 +372,32 @@ spring:
       api-key: ${OPENAI_API_KEY}
       embedding:
         options:
-          model: text-embedding-3-small
+          model: text-embedding-3-large
+          dimensions: 1536
+```
+
+**Database configuration:**
+```sql
+-- Add pgvector extension and column
+CREATE EXTENSION IF NOT EXISTS vector;
+ALTER TABLE documents ADD COLUMN content_vector vector(1536);
+CREATE INDEX ON documents USING hnsw (content_vector vector_cosine_ops);
 ```
 
 **Rationale:**
 - Spring AI provides native OpenAI integration
-- text-embedding-3-small is cost-effective (512 dimensions)
-- High quality embeddings with good performance
+- text-embedding-3-large @ 1536 dims provides optimal balance (95% quality, 50% storage vs 3072)
+- Better semantic understanding than text-embedding-3-small
+- 1536 dimensions proven standard (used by many production systems)
 - Easy to integrate with existing Spring infrastructure
 - Can switch to local models (sentence-transformers) later if needed
+
+**Performance considerations:**
+- 1536 dimensions require ~6KB storage per document
+- For 10,000 documents: ~60MB vectors + ~180MB HNSW index
+- Similarity search with pgvector remains fast with proper HNSW indexing
+- Faster than 3072 dimensions while maintaining excellent quality
+- MTEB benchmark: Performs better than text-embedding-3-small @ full 1536 dims
 
 ### 6. Rate Limiting Strategy: 100 requests/minute per API-key
 

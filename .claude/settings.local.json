@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(mkdir:*)",
-      "mcp__postgres__query"
+      "mcp__postgres__query",
+      "WebSearch"
     ],
     "deny": [],
     "ask": [],
