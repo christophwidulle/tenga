@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/tenga}
+    username: ${SPRING_DATASOURCE_USERNAME:tenga}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    root: INFO
+    de.christophdick.tenga: INFO
+  file:
+    name: logs/tenga.log
+  pattern:
+    file: '%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n'
